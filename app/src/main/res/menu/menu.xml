@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/menu_rename"
+        android:onClick="renameFiles"
+        android:title="Rename"
+        android:visible="false" />
+    <item android:id="@+id/menu_compress"
+        android:onClick="compressFiles"
+        android:title="Compress"
+        android:visible="false" />
+    <item android:id="@+id/menu_lock"
+        android:onClick="lockFiles"
+        android:title="Lock"
+        android:visible="false" />
+    <item android:id="@+id/menu_backup"
+        android:onClick="backupFiles"
+        android:title="Backup"
+        android:visible="false" />
+    <item android:id="@+id/menu_share"
+        android:onClick="shareFiles"
+        android:title="Share"
+        android:visible="false" />
+    <item android:id="@+id/menu_exit"
+        android:onClick="exit"
+        android:title="Exit"
+        android:visible="true" />
+</menu>
