@@ -28,10 +28,10 @@ import java.net.Socket;
 
 public class ReceiveActivity extends AppCompatActivity {
 
-    TextView receive;
     Button create;
 
     final int PORT = 6416;
+    final int BUFFER_SIZE = (int) Math.pow(2, 20);
     ServerClass sc;
 
     @Override
@@ -40,7 +40,6 @@ public class ReceiveActivity extends AppCompatActivity {
         setContentView(R.layout.activity_receive);
         setTitle("Receive");
 
-        receive = findViewById(R.id.text_receive);
         create = findViewById(R.id.btn_start);
     }
 
@@ -52,7 +51,7 @@ public class ReceiveActivity extends AppCompatActivity {
 
     public void start(View view) {
         create.setEnabled(false);
-        receive.setText("Creating hotspot...");
+        Toast.makeText(getApplicationContext(), "Creating hotspot...", Toast.LENGTH_SHORT).show();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (!Settings.System.canWrite(this)) {
@@ -62,14 +61,14 @@ public class ReceiveActivity extends AppCompatActivity {
                 startActivity(intent);
             } else {
                 createHotspot();
-                receive.setText("Waiting for a device to connect...");
+                Toast.makeText(getApplicationContext(), "Waiting for a device to connect...", Toast.LENGTH_SHORT).show();
 
                 sc = new ServerClass();
                 sc.start();
             }
         } else {
             createHotspot();
-            receive.setText("Waiting for a device to connect...");
+            Toast.makeText(getApplicationContext(), "Waiting for a device to connect...", Toast.LENGTH_SHORT).show();
 
             sc = new ServerClass();
             sc.start();
@@ -127,21 +126,31 @@ public class ReceiveActivity extends AppCompatActivity {
                     serverSocket = new ServerSocket(PORT);
                     socket = serverSocket.accept();
                     flag = false;
-                    inputStream = new BufferedInputStream(socket.getInputStream(), 32768);
+                    inputStream = new BufferedInputStream(socket.getInputStream());
 
-                    receive.setText("Connected! Receiving file...");
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Toast.makeText(getApplicationContext(), "Connected! Receiving file...", Toast.LENGTH_SHORT).show();
+                        }
+                    });
 
                     File saveLocation = new File(getFilesDir() + File.separator + "temp");
                     if (!saveLocation.exists()) saveLocation.mkdir();
 
-                    FileOutputStream fos = new FileOutputStream(saveLocation);
+                    FileOutputStream fos = new FileOutputStream(saveLocation + File.separator + "receive.zip");
                     BufferedOutputStream bos = new BufferedOutputStream(fos);
 
-                    int data;
-                    while ((data = inputStream.read()) != -1) {
-                        bos.write(data);
+                    final long startTime = System.nanoTime();
+
+                    byte [] buffer = new byte[BUFFER_SIZE];
+                    int count;
+                    while ((count = inputStream.read(buffer)) > 0) {
+                        bos.write(buffer, 0, count);
                         bos.flush();
                     }
+
+                    final long endTime = System.nanoTime();
 
                     fos.close();
                     bos.close();
@@ -150,11 +159,19 @@ public class ReceiveActivity extends AppCompatActivity {
                     serverSocket.close();
                     socket.close();
 
+                    final long fileSize = new File(saveLocation + File.separator + "receive.zip").length();
                     Compressor.unzip(saveLocation + File.separator + "receive.zip", Environment.getExternalStorageDirectory() + File.separator + "Received Files", "", Toast.makeText(getApplicationContext(), "File receive successful", Toast.LENGTH_SHORT));
                     saveLocation.delete();
 
-                    receive.setText("File received successfully!");
-                    cancelReceive(null);
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            double time = (endTime - startTime) / 1000000000.0;
+                            double speed = (fileSize / 1000) / time;
+                            Toast.makeText(getApplicationContext(), "File received successfully! Took " + (int) time + "s at " + (int) speed + "kbps", Toast.LENGTH_SHORT).show();
+                            cancelReceive(null);
+                        }
+                    });
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

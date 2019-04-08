@@ -1,7 +1,9 @@
 package com.prantik.filemanager;
 
 import android.app.Activity;
+import android.content.Context;
 import android.net.wifi.ScanResult;
+import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.view.View;
@@ -31,6 +33,7 @@ public class ShareActivity extends Activity {
     String location;
     final String HOST = "192.168.43.1";
     final int PORT = 6416;
+    final int BUFFER_SIZE = (int) Math.pow(2, 20);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,6 +59,25 @@ public class ShareActivity extends Activity {
         hotspots.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                WifiConfiguration conf = new WifiConfiguration();
+                conf.SSID = "\"" + "fm_" + ssids.get(position) + "\"";
+                conf.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.NONE);
+                WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+                wifiManager.addNetwork(conf);
+
+                List<WifiConfiguration> list = wifiManager.getConfiguredNetworks();
+                for (WifiConfiguration i : list) {
+                    if (i.SSID != null && i.SSID.equals("\"" + "fm_" + ssids.get(position) + "\"")) {
+                        try {
+                            wifiManager.disconnect();
+                            wifiManager.enableNetwork(i.networkId, true);
+                            wifiManager.reconnect();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+
                 cc = new ClientClass();
                 cc.start();
             }
@@ -97,30 +119,28 @@ public class ShareActivity extends Activity {
                 try {
                     socket = new Socket(HOST, PORT);
                     flag = false;
-                    outputStream = new BufferedOutputStream(socket.getOutputStream(), 32768);
+                    outputStream = new BufferedOutputStream(socket.getOutputStream());
 
                     FileInputStream fis = new FileInputStream(location);
                     BufferedInputStream bis = new BufferedInputStream(fis);
 
-                    int data;
-
-                    while ((data = bis.read()) != -1) {
-                        outputStream.write(data);
+                    byte [] buffer = new byte[BUFFER_SIZE];
+                    int count;
+                    while ((count = bis.read(buffer)) > 0) {
+                        outputStream.write(buffer, 0, count);
                         outputStream.flush();
                     }
 
                     bis.close();
                     fis.close();
 
-                    outputStream.close();
-                    socket.close();
+                    socket.shutdownOutput();
                     new File(location).delete();
 
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             Toast.makeText(getApplicationContext(), "File shared successfully", Toast.LENGTH_SHORT).show();
-                            cancelShare(null);
                         }
                     });
                 } catch (Exception e) {
